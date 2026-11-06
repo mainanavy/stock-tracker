@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" style="color-scheme:dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workshop Stock Tracker</title>
+<style>
+:root{--bg:#f6f5f1;--card:#fff;--ink:#1d1d1b;--mute:#6b6a64;--line:#e3e1d9;--acc:#c46a00;--accink:#fff;--bad:#b3261e;--badbg:#fdeceb;--ok:#2e7d32;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#171716;--card:#222220;--ink:#efede6;--mute:#a09e95;--line:#38372f;--acc:#f0a040;--accink:#1d1d1b;--bad:#ff8a80;--badbg:#3a2220;--ok:#81c784}}
+:root[data-theme="dark"]{--bg:#171716;--card:#222220;--ink:#efede6;--mute:#a09e95;--line:#38372f;--acc:#f0a040;--accink:#1d1d1b;--bad:#ff8a80;--badbg:#3a2220;--ok:#81c784}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:var(--mute);margin:0 0 16px;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.stat,.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:20px;margin-top:2px}
+.stat span{color:var(--mute);font-size:12px}
+.panel{margin-bottom:16px}
+.panel h2{font-size:15px;margin:0 0 10px}
+form{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+label{display:flex;flex-direction:column;font-size:12px;color:var(--mute);gap:3px}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;width:100%}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px}
+button.p{background:var(--acc);color:var(--accink);border-color:var(--acc);font-weight:600}
+.bar{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.bar input{flex:1;min-width:160px}
+.wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:720px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-size:12px;color:var(--mute);font-weight:600}
+td.n,th.n{text-align:right}
+td input{width:70px;padding:4px 6px;text-align:right}
+.low td{background:var(--badbg)}
+.tag{color:var(--bad);font-weight:600;font-size:12px}
+.x{color:var(--bad);border:none;background:none;padding:4px 8px}
+.empty{color:var(--mute);padding:20px;text-align:center}
+#note{color:var(--mute);font-size:12px;margin-top:8px}
+</style>
+</head>
+<body>
+<main>
+<h1>Workshop Stock Tracker</h1>
+<p class="sub">Log what you buy, track what you use, see what’s left and what it cost.</p>
+
+<div class="stats">
+<div class="stat"><span>Total spent</span><b id="s-spent">KES 0</b></div>
+<div class="stat"><span>Value still in stock</span><b id="s-value">KES 0</b></div>
+<div class="stat"><span>Purchases logged</span><b id="s-count">0</b></div>
+<div class="stat"><span>Low / out of stock</span><b id="s-low">0</b></div>
+</div>
+
+<div class="panel">
+<h2>Add a purchase</h2>
+<form id="f">
+<label>Item<input id="name" required placeholder="e.g. 2.5mm cable (roll)"></label>
+<label>Quantity bought<input id="qty" type="number" min="0" step="any" required></label>
+<label>Price each (KES)<input id="price" type="number" min="0" step="any" required></label>
+<label>Date<input id="date" type="date"></label>
+<label>Supplier (optional)<input id="sup"></label>
+<label>Low-stock alert at<input id="low" type="number" min="0" step="any" value="2"></label>
+<button class="p" type="submit">Add</button>
+</form>
+</div>
+
+<div class="panel">
+<div class="bar"><input id="q" placeholder="Search items or suppliers…"><button id="csv" type="button">Export CSV</button></div>
+<div class="wrap"><table>
+<thead><tr><th>Item</th><th class="n">Bought</th><th class="n">Price each</th><th class="n">Total paid</th><th class="n">Used</th><th class="n">Left</th><th class="n">Value left</th><th>Date</th><th></th></tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+<div id="note"></div>
+</div>
+</main>
+
+<script>
+(function(){
+var items=[],store=null,LS="workshop-stock-v1";
+var $=function(i){return document.getElementById(i)};
+var kes=function(n){return "KES "+Math.round(n).toLocaleString("en-KE")};
+var esc=function(t){return String(t).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})};
+var num=function(n){return Math.round(n*100)/100};
+$("date").value=new Date().toISOString().slice(0,10);
+
+function lsLoad(){try{return JSON.parse(localStorage.getItem(LS)||"[]")}catch(e){return []}}
+function lsSave(){try{localStorage.setItem(LS,JSON.stringify(items))}catch(e){}}
+
+function save(it){
+  if(store){store.collection("purchases").doc(it.id).set(it).catch(function(){$("note").textContent="Couldn’t save that change."});}
+  else{var i=items.findIndex(function(x){return x.id===it.id});if(i<0)items.push(it);else items[i]=it;lsSave();render();}
+}
+function remove(id){
+  if(store){store.collection("purchases").doc(id).delete().catch(function(){});}
+  else{items=items.filter(function(x){return x.id!==id});lsSave();render();}
+}
+
+function render(){
+  var q=$("q").value.trim().toLowerCase(),spent=0,val=0,low=0,html="";
+  var list=items.slice().sort(function(a,b){return (b.date||"").localeCompare(a.date||"")});
+  items.forEach(function(it){var left=it.qty-it.used;spent+=it.qty*it.price;val+=Math.max(left,0)*it.price;if(left<=it.low)low++;});
+  list.filter(function(it){return !q||(it.name+" "+(it.sup||"")).toLowerCase().indexOf(q)>-1}).forEach(function(it){
+    var left=it.qty-it.used,isLow=left<=it.low;
+    html+='<tr class="'+(isLow?"low":"")+'"><td>'+esc(it.name)+(it.sup?'<div style="color:var(--mute);font-size:12px">'+esc(it.sup)+'</div>':'')+'</td><td class="n">'+num(it.qty)+'</td><td class="n">'+kes(it.price)+'</td><td class="n">'+kes(it.qty*it.price)+
+    '</td><td class="n"><input type="number" min="0" step="any" data-id="'+it.id+'" value="'+num(it.used)+'"></td><td class="n"><b>'+num(left)+'</b>'+(isLow?' <span class="tag">'+(left<=0?"OUT":"LOW")+'</span>':'')+
+    '</td><td class="n">'+kes(Math.max(left,0)*it.price)+'</td><td>'+(it.date||"")+'</td><td><button class="x" data-del="'+it.id+'" title="Delete">✕</button></td></tr>';
+  });
+  var tb=$("rows");
+  tb.innerHTML=html||'<tr><td colspan="9" class="empty">'+(items.length?"No matches.":"No purchases yet — add your first one above.")+'</td></tr>';
+  $("s-spent").textContent=kes(spent);$("s-value").textContent=kes(val);$("s-count").textContent=items.length;$("s-low").textContent=low;
+}
+
+$("f").addEventListener("submit",function(e){
+  e.preventDefault();
+  var id=(window.crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+Math.random().toString(36).slice(2);
+  save({id:id,name:$("name").value.trim(),qty:parseFloat($("qty").value)||0,price:parseFloat($("price").value)||0,used:0,low:parseFloat($("low").value)||0,date:$("date").value,sup:$("sup").value.trim()});
+  $("name").value="";$("qty").value="";$("price").value="";$("sup").value="";$("name").focus();
+});
+$("rows").addEventListener("change",function(e){
+  var id=e.target.getAttribute("data-id");if(!id)return;
+  var it=items.find(function(x){return x.id===id});if(!it)return;
+  var v=Math.max(0,parseFloat(e.target.value)||0);
+  save(Object.assign({},it,{used:v}));
+});
+$("rows").addEventListener("click",function(e){
+  var id=e.target.getAttribute("data-del");if(!id)return;
+  if(confirm("Delete this purchase record?"))remove(id);
+});
+$("q").addEventListener("input",render);
+
+$("csv").addEventListener("click",async function(){
+  var rows=[["Item","Supplier","Date","Qty bought","Price each","Total paid","Used","Left","Value left"]];
+  items.forEach(function(it){var l=it.qty-it.used;rows.push([it.name,it.sup||"",it.date||"",it.qty,it.price,it.qty*it.price,it.used,l,Math.max(l,0)*it.price]);});
+  var data=rows.map(function(r){return r.map(function(c){return '"'+String(c).replace(/"/g,'""')+'"'}).join(",")}).join("\n");
+  try{var d=window.claude&&await claude.use("downloads");if(d){await d.save({filename:"workshop-stock.csv",data:data});return;}}catch(e){}
+  try{var a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"text/csv"}));a.download="workshop-stock.csv";document.body.appendChild(a);a.click();a.remove();}catch(e){$("note").textContent="Export isn’t available in this view.";}
+});
+
+// Load: shared database if available, otherwise this browser's storage
+items=lsLoad();render();
+(async function(){
+  try{
+    var db=window.claude&&await claude.use("db");
+    if(!db)return;
+    store=db;
+    var t=setTimeout(function(){$("note").textContent="Still trying to reach saved data…"},10000);
+    db.collection("purchases").onSnapshot(function(snap){
+      clearTimeout(t);$("note").textContent="";
+      items=snap.docs.map(function(d){return Object.assign({id:d.id},d.data())});
+      render();
+    },function(){clearTimeout(t);store=null;$("note").textContent="Saved data unavailable; using this browser only."});
+  }catch(e){}
+})();
+})();
+</script>
+</body>
+</html>

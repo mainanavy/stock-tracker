@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#101827">
+<title>Offline Sales Manager</title>
+<style>
+:root{--bg:#f1f5fb;--card:#fff;--ink:#172033;--muted:#687386;--line:#e1e8f2;--navy:#101827;--blue:#2563eb;--green:#07865b;--red:#c24141;--soft-blue:#eaf1ff;--soft-green:#e8f7f0;--soft-orange:#fff3e6;--shadow:0 5px 18px #1720330b}
+body.dark{--bg:#0d1422;--card:#172235;--ink:#edf3ff;--muted:#a6b3c8;--line:#2b3a52;--navy:#080e19;--blue:#6b9cff;--green:#48d6a0;--red:#ff7777;--soft-blue:#223653;--soft-green:#1d3c35;--soft-orange:#493522;--shadow:0 6px 20px #0005}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Arial;transition:background .2s,color .2s}
+button,input,select{font:inherit}button{cursor:pointer;border:0;border-radius:10px;padding:11px 15px;font-weight:650;background:var(--blue);color:white}
+button.secondary{background:var(--soft-blue);color:var(--ink)}button.danger{background:color-mix(in srgb,var(--red) 14%,var(--card));color:var(--red)}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink);margin-top:5px}
+label{font-size:13px;font-weight:650;color:#485469;display:block;margin-bottom:12px}
+header{background:var(--navy);color:white;padding:18px max(18px,calc((100% - 1120px)/2));display:flex;align-items:center;justify-content:space-between;gap:12px}
+header h1{font-size:19px;margin:0}header small{color:#b9c5d8}
+main{max-width:1120px;margin:22px auto;padding:0 16px 40px}
+.tabs{display:flex;gap:8px;overflow:auto;margin-bottom:18px}.tabs button{white-space:nowrap;background:var(--soft-blue);color:var(--ink)}.tabs button.active{background:var(--blue);color:white}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card,.panel{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:17px;box-shadow:var(--shadow)}
+.metric{border-top:4px solid var(--blue)}.metric:nth-child(4n+2){border-top-color:#0ea879}.metric:nth-child(4n+3){border-top-color:#e69a35}.metric:nth-child(4n){border-top-color:#8b6be8}
+.metric span{color:var(--muted);font-size:13px}.metric strong{display:block;font-size:24px;margin-top:7px;overflow-wrap:anywhere}
+.panel{margin-top:15px}.panel h2{font-size:17px;margin:0 0 14px}.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.formgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:0 12px}.full{grid-column:1/-1}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-size:12px}
+.tablewrap{overflow:auto}.empty{color:var(--muted);padding:16px 0}
+.hidden{display:none!important}.positive{color:var(--green)}.negative{color:var(--red)}
+#gate{min-height:100vh;display:grid;place-items:center;padding:18px;background:linear-gradient(145deg,#101827,#1d3760)}
+.gatebox{background:white;width:min(420px,100%);padding:25px;border-radius:18px}.gatebox h1{margin:0 0 5px}.gatebox p{color:var(--muted);margin-top:0}.gatebox button{width:100%;margin-top:5px}
+.note{font-size:12px;color:var(--muted);margin-top:12px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:white;padding:11px 16px;border-radius:10px;display:none;z-index:5}
+body.dark .gatebox{background:#172235;color:#edf3ff}body.dark .gatebox input{background:#101a2a;color:#edf3ff;border-color:#34445d}body.dark .gatebox p,body.dark .gatebox .note{color:#a6b3c8}
+body.dark th{color:#a6b3c8}body.dark td{border-bottom-color:#2b3a52}body.dark hr{border-color:#2b3a52!important}
+@media(max-width:760px){.grid{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}header{padding:15px 16px}.metric strong{font-size:20px}}
+@media(max-width:430px){.formgrid{grid-template-columns:1fr}.full{grid-column:auto}.grid{gap:8px}.card{padding:13px}}
+</style>
+</head>
+<body>
+<section id="gate">
+ <div class="gatebox">
+  <h1 id="gateTitle">Set up your business</h1>
+  <p id="gateSub">Create an offline sales tracker on this device.</p>
+  <form id="gateForm">
+   <label>Business name<input id="businessInput" maxlength="50" required placeholder="e.g. Victory Shop"></label>
+   <label>PIN or password<input id="pinInput" type="password" minlength="4" maxlength="64" required placeholder="At least 4 characters"></label>
+   <label id="confirmLabel">Confirm PIN or password<input id="confirmInput" type="password" minlength="4" maxlength="64" required></label>
+   <button id="gateButton" type="submit">Create business account</button>
+  </form>
+  <p class="note">Your records stay in this browser on this device. This is a basic local lock, not high-security encryption.</p>
+ </div>
+</section>
+<div id="app" class="hidden">
+<header><div><h1 id="brand">Sales Manager</h1><small>Offline business tracker</small></div><div class="actions"><button class="secondary" id="themeBtn" type="button" aria-label="Toggle dark mode">🌙 Dark mode</button><button class="secondary" id="exportBtn">Backup CSV</button><button class="secondary" id="lockBtn">Lock</button></div></header>
+<main>
+ <nav class="tabs">
+  <button class="active" data-tab="dashboard">Dashboard</button><button data-tab="sales">Sales</button><button data-tab="expenses">Expenses</button><button data-tab="reports">Reports</button><button data-tab="settings">Settings</button>
+ </nav>
+ <section id="dashboard" class="tabpage">
+  <div class="grid">
+   <div class="card metric"><span>Sales today</span><strong id="todaySales">KSh 0</strong></div>
+   <div class="card metric"><span>Sales this week</span><strong id="weekSales">KSh 0</strong></div>
+   <div class="card metric"><span>Sales this month</span><strong id="monthSales">KSh 0</strong></div>
+   <div class="card metric"><span>Sales this year</span><strong id="yearSales">KSh 0</strong></div>
+   <div class="card metric"><span>Profit this week</span><strong class="positive" id="weekProfit">KSh 0</strong></div>
+   <div class="card metric"><span>Profit this month</span><strong class="positive" id="monthProfit">KSh 0</strong></div>
+   <div class="card metric"><span>Profit this year</span><strong class="positive" id="yearProfit">KSh 0</strong></div>
+   <div class="card metric"><span>Expenses this month</span><strong class="negative" id="monthExpenses">KSh 0</strong></div>
+  </div>
+  <div class="panel"><h2>How profit is calculated</h2><p>Net profit = sales − cost of goods sold − expenses. Record the item's buying cost when entering a sale so profit can be calculated correctly.</p></div>
+  <div class="panel"><h2>Profit and loss graph</h2><p class="note">Compare your net result for this week, month and year. Bars below zero indicate a loss.</p><canvas id="profitLossChart" height="115" aria-label="Profit and loss graph"></canvas><div id="graphSummary" class="note"></div></div>
+  <div class="panel"><h2>Recent sales</h2><div id="recentSales" class="tablewrap"></div></div>
+ </section>
+ <section id="sales" class="tabpage hidden">
+  <div class="panel"><h2>Record a sale</h2>
+   <form id="saleForm" class="formgrid">
+    <label>Product / item<input id="saleName" required maxlength="80" placeholder="e.g. LED bulb"></label>
+    <label>Date<input id="saleDate" type="date" required></label>
+    <label>Quantity<input id="saleQty" type="number" min="1" step="1" value="1" required></label>
+    <label>Selling price per item (KSh)<input id="salePrice" type="number" min="0" step="0.01" required></label>
+    <label>Buying cost per item (KSh)<input id="saleCost" type="number" min="0" step="0.01" required></label>
+    <div class="full actions"><button type="submit">Save sale</button><span class="note">Total and gross profit are calculated automatically.</span></div>
+   </form>
+  </div>
+  <div class="panel"><h2>Sales records</h2><div id="salesTable" class="tablewrap"></div></div>
+ </section>
+ <section id="expenses" class="tabpage hidden">
+  <div class="panel"><h2>Add an expense</h2>
+   <form id="expenseForm" class="formgrid">
+    <label>Description<input id="expenseName" required maxlength="100" placeholder="e.g. Transport"></label>
+    <label>Date<input id="expenseDate" type="date" required></label>
+    <label>Amount (KSh)<input id="expenseAmount" type="number" min="0.01" step="0.01" required></label>
+    <div class="full"><button type="submit">Save expense</button></div>
+   </form>
+  </div>
+  <div class="panel"><h2>Expense records</h2><div id="expensesTable" class="tablewrap"></div></div>
+ </section>
+ <section id="reports" class="tabpage hidden">
+  <div class="panel"><h2>Sales and profit reports</h2>
+   <label>Choose period<select id="reportPeriod"><option value="week">This week</option><option value="month" selected>This month</option><option value="year">This year</option><option value="all">All time</option></select></label>
+   <div class="grid">
+    <div class="card metric"><span>Total sales</span><strong id="rSales">KSh 0</strong></div>
+    <div class="card metric"><span>Cost of goods sold</span><strong id="rCost">KSh 0</strong></div>
+    <div class="card metric"><span>Expenses</span><strong id="rExpenses">KSh 0</strong></div>
+    <div class="card metric"><span>Net profit</span><strong id="rProfit">KSh 0</strong></div>
+   </div>
+   <p class="note">Weekly periods run Monday to Sunday. Reports use the dates entered for each sale and expense.</p>
+  </div>
+ </section>
+ <section id="settings" class="tabpage hidden">
+  <div class="panel"><h2>Business settings</h2>
+   <form id="businessForm"><label>Business name<input id="renameInput" maxlength="50" required></label><button type="submit">Update business name</button></form>
+   <hr style="border:0;border-top:1px solid var(--line);margin:20px 0">
+   <h2>Change PIN / password</h2>
+   <form id="pinForm"><label>Current PIN / password<input id="oldPin" type="password" required></label><label>New PIN / password<input id="newPin" type="password" minlength="4" required></label><label>Confirm new PIN / password<input id="newPin2" type="password" minlength="4" required></label><button type="submit">Change PIN / password</button></form>
+   <p class="note">Do not clear this browser's site data unless you have exported a backup. Clearing it can erase your records.</p>
+  </div>
+ </section>
+</main>
+</div>
+<div id="toast"></div>
+<script>
+const KEY='offlineSalesManager_v1';
+let db=null;
+const $=id=>document.getElementById(id);
+const today=()=>new Date().toISOString().slice(0,10);
+const money=n=>'KSh '+(Number(n)||0).toLocaleString('en-KE',{minimumFractionDigits:2,maximumFractionDigits:2});
+function load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}}
+function save(){
+ try{localStorage.setItem(KEY,JSON.stringify(db));return true}
+ catch(e){toast('Storage is unavailable. Open this HTML file in Chrome or Edge and allow site storage.');return false}
+ }
+function toast(s){$('toast').textContent=s;$('toast').style.display='block';setTimeout(()=>$('toast').style.display='none',2400)}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function dateObj(s){return new Date(s+'T12:00:00')}
+function startWeek(d){let x=new Date(d);x.setHours(0,0,0,0);x.setDate(x.getDate()-(x.getDay()+6)%7);return x}
+function within(date,period){
+ const d=dateObj(date), now=new Date(), t=new Date(today()+'T12:00:00');
+ if(period==='all')return true;
+ if(period==='week'){let st=startWeek(t);let en=new Date(st);en.setDate(en.getDate()+7);return d>=st&&d<en}
+ if(period==='month')return d.getFullYear()===t.getFullYear()&&d.getMonth()===t.getMonth();
+ if(period==='year')return d.getFullYear()===t.getFullYear();
+ return false;
+}
+function totals(period){
+ const ss=db.sales.filter(x=>within(x.date,period)), es=db.expenses.filter(x=>within(x.date,period));
+ const sales=ss.reduce((a,x)=>a+x.qty*x.price,0), cost=ss.reduce((a,x)=>a+x.qty*x.cost,0), exp=es.reduce((a,x)=>a+x.amount,0);
+ return {sales,cost,exp,profit:sales-cost-exp};
+}
+function table(rows,headers,render){
+ if(!rows.length)return '<div class="empty">No records yet.</div>';
+ return '<table><thead><tr>'+headers.map(h=>'<th>'+h+'</th>').join('')+'</tr></thead><tbody>'+rows.map(render).join('')+'</tbody></table>';
+}
+function drawProfitLossGraph(){
+ const canvas=$('profitLossChart'),ctx=canvas.getContext('2d');
+ const periods=[['This week',totals('week').profit],['This month',totals('month').profit],['This year',totals('year').profit]];
+ const w=Math.max(300,canvas.clientWidth||600),h=230,dpr=window.devicePixelRatio||1;
+ canvas.width=w*dpr;canvas.height=h*dpr;canvas.style.width='100%';canvas.style.height=h+'px';
+ ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+ const pad={l:58,r:18,t:18,b:42},plotW=w-pad.l-pad.r,plotH=h-pad.t-pad.b;
+ const maxAbs=Math.max(100,...periods.map(p=>Math.abs(p[1])))*1.15;
+ const y0=pad.t+plotH/2;
+ const y=v=>pad.t+(maxAbs-v)/(2*maxAbs)*plotH;
+ ctx.font='12px system-ui';ctx.strokeStyle='#dce3ed';ctx.fillStyle='#687386';ctx.lineWidth=1;
+ for(let i=-2;i<=2;i++){
+  let val=maxAbs*i/2, yy=y(val);
+  ctx.beginPath();ctx.moveTo(pad.l,yy);ctx.lineTo(w-pad.r,yy);ctx.stroke();
+  ctx.textAlign='right';ctx.fillText((val<0?'-':'')+'KSh '+Math.round(Math.abs(val)).toLocaleString('en-KE'),pad.l-7,yy+4);
+ }
+ ctx.strokeStyle='#7b8798';ctx.beginPath();ctx.moveTo(pad.l,y0);ctx.lineTo(w-pad.r,y0);ctx.stroke();
+ const slot=plotW/3,bw=Math.min(62,slot*.48);
+ periods.forEach((p,i)=>{
+  const x=pad.l+slot*i+slot/2, yy=y(p[1]), top=Math.min(y0,yy), bh=Math.max(2,Math.abs(y0-yy));
+  ctx.fillStyle=p[1]>=0?'#07865b':'#c24141';
+  ctx.fillRect(x-bw/2,top,bw,bh);
+  ctx.fillStyle='#334155';ctx.textAlign='center';ctx.font='12px system-ui';ctx.fillText(p[0],x,h-15);
+  ctx.font='11px system-ui';ctx.fillStyle=p[1]>=0?'#07865b':'#c24141';
+  const label=(p[1]<0?'-':'')+'KSh '+Math.round(Math.abs(p[1])).toLocaleString('en-KE');
+  let ly=p[1]>=0?Math.max(12,top-7):Math.min(h-27,top+bh+15);
+  ctx.fillText(label,x,ly);
+ });
+ $('graphSummary').textContent=periods.map(p=>p[0]+': '+(p[1]>=0?'profit ':'loss ')+money(Math.abs(p[1]))).join('  •  ');
+}
+function draw(){
+ $('brand').textContent=db.business;
+ ['today','week','month','year'].forEach(p=>{
+  let val=db.sales.filter(x=>p==='today'?x.date===today():within(x.date,p)).reduce((a,x)=>a+x.qty*x.price,0);
+  $(p+'Sales').textContent=money(val);
+ });
+ $('weekProfit').textContent=money(totals('week').profit);
+ $('monthProfit').textContent=money(totals('month').profit);
+ $('yearProfit').textContent=money(totals('year').profit);
+ $('monthExpenses').textContent=money(totals('month').exp);
+ drawProfitLossGraph();
+ const recent=[...db.sales].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+ $('recentSales').innerHTML=table(recent,['Date','Item','Qty','Total'],x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.name)}</td><td>${x.qty}</td><td>${money(x.qty*x.price)}</td></tr>`);
+ $('salesTable').innerHTML=table([...db.sales].sort((a,b)=>b.date.localeCompare(a.date)),['Date','Item','Qty','Sales','Gross profit','Action'],x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.name)}</td><td>${x.qty}</td><td>${money(x.qty*x.price)}</td><td>${money(x.qty*(x.price-x.cost))}</td><td><button class="danger" onclick="deleteRecord('sales','${x.id}')">Delete</button></td></tr>`);
+ $('expensesTable').innerHTML=table([...db.expenses].sort((a,b)=>b.date.localeCompare(a.date)),['Date','Description','Amount','Action'],x=>`<tr><td>${x.date}</td><td>${escapeHtml(x.name)}</td><td>${money(x.amount)}</td><td><button class="danger" onclick="deleteRecord('expenses','${x.id}')">Delete</button></td></tr>`);
+ report();
+}
+function report(){let t=totals($('reportPeriod').value);$('rSales').textContent=money(t.sales);$('rCost').textContent=money(t.cost);$('rExpenses').textContent=money(t.exp);$('rProfit').textContent=money(t.profit);$('rProfit').className=t.profit<0?'negative':'positive'}
+function openApp(){ $('gate').classList.add('hidden');$('app').classList.remove('hidden');$('brand').textContent=db.business;$('renameInput').value=db.business;draw()}
+function deleteRecord(type,id){if(!confirm('Delete this record?'))return;db[type]=db[type].filter(x=>x.id!==id);save();draw();toast('Record deleted')}
+$('gateForm').addEventListener('submit',e=>{
+ e.preventDefault();let business=$('businessInput').value.trim(),pin=$('pinInput').value;
+ if(!business||pin.length<4)return;
+ if(!db){if(pin!==$('confirmInput').value){toast('PINs do not match');return}db={business,pin,sales:[],expenses:[]};if(!save()){db=null;return}openApp()}
+ else if(business!==db.business){toast('Business name does not match');}
+ else if(pin===db.pin){openApp()}else toast('Incorrect PIN or password');
+});
+function setupGate(){db=load();$('confirmLabel').classList.toggle('hidden',!!db);$('confirmInput').required=!db;$('gateTitle').textContent=db?'Welcome back':'Set up your business';$('gateSub').textContent=db?'Enter your business name and PIN to unlock your records.':'Create an offline sales tracker on this device.';$('gateButton').textContent=db?'Unlock app':'Create business account';$('businessInput').value=db?db.business:'Victory Shop';}
+$('saleDate').value=today();$('expenseDate').value=today();
+$('saleForm').addEventListener('submit',e=>{e.preventDefault();db.sales.push({id:crypto.randomUUID(),name:$('saleName').value.trim(),date:$('saleDate').value,qty:Number($('saleQty').value),price:Number($('salePrice').value),cost:Number($('saleCost').value)});save();e.target.reset();$('saleDate').value=today();$('saleQty').value=1;draw();toast('Sale saved')});
+$('expenseForm').addEventListener('submit',e=>{e.preventDefault();db.expenses.push({id:crypto.randomUUID(),name:$('expenseName').value.trim(),date:$('expenseDate').value,amount:Number($('expenseAmount').value)});save();e.target.reset();$('expenseDate').value=today();draw();toast('Expense saved')});
+document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tabpage').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));if(b.dataset.tab==='reports')report()}));
+$('reportPeriod').addEventListener('change',report);
+$('lockBtn').addEventListener('click',()=>{ $('app').classList.add('hidden');$('gate').classList.remove('hidden');$('pinInput').value='';setupGate()});
+$('businessForm').addEventListener('submit',e=>{e.preventDefault();db.business=$('renameInput').value.trim();save();draw();toast('Business name updated')});
+$('pinForm').addEventListener('submit',e=>{e.preventDefault();if($('oldPin').value!==db.pin){toast('Current PIN is incorrect');return}if($('newPin').value!==$('newPin2').value){toast('New PINs do not match');return}db.pin=$('newPin').value;save();e.target.reset();toast('PIN changed')});
+$('exportBtn').addEventListener('click',()=>{
+ const lines=['TYPE,DATE,DESCRIPTION,QUANTITY,SELLING_PRICE,BUYING_COST,AMOUNT'];
+ db.sales.forEach(x=>lines.push(['SALE',x.date,JSON.stringify(x.name),x.qty,x.price,x.cost,x.qty*x.price].join(',')));
+ db.expenses.forEach(x=>lines.push(['EXPENSE',x.date,JSON.stringify(x.name),'','','',x.amount].join(',')));
+ const blob=new Blob([lines.join('\n')],{type:'text/csv'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='business-records-backup.csv';a.click();URL.revokeObjectURL(url);
+});
+setupGate();
+window.addEventListener('resize',()=>{if(db&&!$('app').classList.contains('hidden'))drawProfitLossGraph()});
+</script>
+</body></html>
